@@ -65,9 +65,14 @@ public final class DownloadManager {
         this.store = new DownloadStore(context);
     }
 
-    /// Loads the saved records and starts following the launcher's download events.
+    /// Starts following the launcher's download events.
+    ///
+    /// <p>Records from the previous session are discarded first: those transfers are gone with the
+    /// process, so showing them (as cancelled rows) would be a log of history rather than a view of
+    /// what is downloading now.</p>
     void start() {
-        entries.addAll(store.load());
+        store.clearLastSession();
+        entries.clear();
 
         // The launcher broadcasts every download it starts, including the ones it begins from its
         // own pages. That is what lets this page list downloads the user started elsewhere.
@@ -102,7 +107,6 @@ public final class DownloadManager {
             DownloadEntry entry = batch != null && !batch.isBlank()
                     ? findBatch(batch)
                     : findEntry(event.getUrl(), event.getTarget());
-            boolean settled = false;
 
             switch (event.getPhase()) {
                 case STARTED -> {
@@ -179,7 +183,6 @@ public final class DownloadManager {
                     entry.received = entry.total > 0 ? entry.total : event.getReceived();
                     entry.speed = 0;
                     entry.state = DownloadEntry.State.DONE;
-                    settled = true;
                 }
                 case FAILED -> {
                     if (entry == null)
@@ -187,12 +190,9 @@ public final class DownloadManager {
                     entry.speed = 0;
                     entry.state = DownloadEntry.State.FAILED;
                     entry.message = event.getMessage() == null ? "" : event.getMessage();
-                    settled = true;
                 }
             }
 
-            if (settled)
-                store.save(entries);
             notifyListeners();
         } catch (Throwable e) {
             context.logWarning("处理下载事件失败：" + e);
@@ -252,18 +252,14 @@ public final class DownloadManager {
     /// enclosing task simply stops. Running this on the aggregate-speed tick lets the row settle
     /// once traffic stops and every known file is accounted for.</p>
     private void settleFinishedBatches() {
-        boolean changed = false;
         for (DownloadEntry entry : entries) {
             if (entry.batch.isEmpty() || !entry.isRunning())
                 continue;
             if (entry.batchTotal > 0 && entry.batchDone >= entry.batchTotal) {
                 entry.state = DownloadEntry.State.DONE;
                 entry.speed = 0;
-                changed = true;
             }
         }
-        if (changed)
-            store.save(entries);
     }
 
     /// Finds the record matching a download.
@@ -304,7 +300,6 @@ public final class DownloadManager {
         entry.cancelAction = null;
         entry.state = DownloadEntry.State.CANCELLED;
         entry.speed = 0;
-        store.save(entries);
 
         if (action != null) {
             try {
@@ -398,9 +393,6 @@ public final class DownloadManager {
         List<DownloadEntry> running = runningEntries();
         entries.clear();
         entries.addAll(running);
-        store.clear();
-        if (!running.isEmpty())
-            store.save(entries);
         notifyListeners();
     }
 

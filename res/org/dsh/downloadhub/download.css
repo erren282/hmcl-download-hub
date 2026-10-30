@@ -1,113 +1,11 @@
 /*
  * 下载中心插件样式
  *
- * 颜色取自启动器的 -monet-* 主题变量，随明暗主题切换。
+ * 页面已改用启动器自己的原生组件（ComponentList / LineButton），行高、悬停、涟漪、
+ * 字体与配色都由启动器主题负责，因此这里只保留原生组件覆盖不到的几处。
  */
-.download-page {
-    -fx-background-color: transparent;
-}
 
-/* 磨砂背景：半透明面板 + BoxBlur，与启动器壁纸融合 */
-.download-backdrop {
-    -fx-background-color: -monet-surface;
-    -fx-opacity: 0.72;
-}
-
-.download-title {
-    -fx-font-size: 15px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -monet-on-surface;
-}
-
-.download-summary {
-    -fx-font-size: 12px;
-    -fx-text-fill: -monet-on-surface-variant;
-}
-
-.download-speed {
-    -fx-font-size: 12.5px;
-    -fx-text-fill: -monet-primary;
-    -fx-font-weight: bold;
-}
-
-.download-empty {
-    -fx-font-size: 12.5px;
-    -fx-text-fill: -monet-on-surface-variant;
-    -fx-padding: 12 0 0 2;
-}
-
-/* 下载列表项 */
-.download-row {
-    -fx-background-color: -monet-surface-container-low;
-    -fx-background-radius: 6px;
-    -fx-border-color: -monet-outline-variant;
-    -fx-border-width: 1px;
-    -fx-border-radius: 6px;
-    -fx-padding: 10 12 10 12;
-}
-
-.download-row:hover {
-    -fx-background-color: -monet-surface-container;
-}
-
-.download-name {
-    -fx-font-size: 13px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -monet-on-surface;
-}
-
-.download-detail {
-    -fx-font-size: 11.5px;
-    -fx-text-fill: -monet-on-surface-variant;
-}
-
-.download-state {
-    -fx-font-size: 11.5px;
-    -fx-padding: 1 8 1 8;
-    -fx-background-radius: 9px;
-}
-
-.download-state.running {
-    -fx-text-fill: -monet-primary;
-    -fx-background-color: -monet-primary-container;
-}
-
-.download-state.done {
-    -fx-text-fill: -monet-on-surface-variant;
-    -fx-background-color: -monet-surface-container-highest;
-}
-
-.download-state.cancelled {
-    -fx-text-fill: -monet-on-surface-variant;
-    -fx-background-color: -monet-surface-container-highest;
-}
-
-.download-state.failed {
-    -fx-text-fill: -monet-error;
-    -fx-background-color: -monet-error-container;
-}
-
-/* 进度条 */
-.download-bar {
-    -fx-pref-height: 6px;
-    -fx-min-height: 6px;
-    -fx-max-height: 6px;
-    -fx-pref-width: 10000px;
-}
-
-.download-bar > .bar {
-    -fx-background-color: -monet-primary;
-    -fx-background-radius: 3px;
-    -fx-background-insets: 0;
-}
-
-.download-bar > .track {
-    -fx-background-color: -monet-surface-container-highest;
-    -fx-background-radius: 3px;
-    -fx-background-insets: 0;
-}
-
-/* 滚动区 */
+/* 滚动区透明：页面直接铺在启动器的窗口背景上，不自绘任何面板 */
 .download-scroll {
     -fx-background-color: transparent;
     -fx-background: transparent;
@@ -117,21 +15,9 @@
     -fx-background-color: transparent;
 }
 
-/* 小按钮 */
-.download-button {
-    -fx-background-color: -monet-surface-container-high;
-    -fx-background-radius: 5px;
-    -fx-padding: 5px 12px;
-    -fx-cursor: hand;
-}
-
-.download-button:hover {
-    -fx-background-color: -monet-surface-container-highest;
-}
-
-.download-button-text {
-    -fx-font-size: 12.5px;
-    -fx-text-fill: -monet-primary;
+/* 页面根节点同样透明，让壁纸与主题色透出来 */
+.download-page {
+    -fx-background-color: transparent;
 }
 
 /* 标题栏按钮上的红点提示
@@ -149,18 +35,4 @@
 
 .download-hub-button-container {
     -fx-background-color: transparent;
-}
-
-/* 取消按钮：贴在进行中状态右侧 */
-.download-cancel {
-    -fx-background-color: transparent;
-    -fx-padding: 2px 8px;
-}
-
-.download-cancel:hover {
-    -fx-background-color: -monet-error-container;
-}
-
-.download-cancel .download-button-text {
-    -fx-text-fill: -monet-error;
 }

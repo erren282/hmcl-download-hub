@@ -6,7 +6,6 @@
 package org.dsh.downloadhub;
 
 import javafx.application.Platform;
-import javafx.scene.Node;
 import org.jackhuang.hmcl.plugin.HmclPlugin;
 import org.jackhuang.hmcl.plugin.PluginContext;
 import org.jackhuang.hmcl.plugin.PluginMenuService;
@@ -39,28 +38,6 @@ public final class DownloadHubPlugin extends HmclPlugin {
     private DownloadPage page;
     private TitleBarButton titleBarButton;
 
-    /// The plugin-module entry that opens the download page.
-    private final org.jackhuang.hmcl.plugin.PluginPageAction pageAction =
-            new org.jackhuang.hmcl.plugin.PluginPageAction() {
-
-                @Override
-                public String getTitle() {
-                    return "下载中心";
-                }
-
-                @Override
-                public String getDescription() {
-                    return "查看后台下载任务、进度与速度，管理下载记录";
-                }
-
-                @Override
-                public Node createPage() {
-                    if (page == null && manager != null)
-                        page = new DownloadPage(manager);
-                    return page;
-                }
-            };
-
     @Override
     public void onEnable() {
         // Each step is wrapped so one failure cannot leave the plugin half-initialised without a
@@ -89,12 +66,6 @@ public final class DownloadHubPlugin extends HmclPlugin {
         }
 
         try {
-            PluginMenuService.registerPage(pageAction);
-        } catch (Throwable e) {
-            getContext().logWarning("下载中心：页面注册失败 " + e);
-        }
-
-        try {
             // While the game starts, opening this page would compete for the window with the
             // launching view, so the entry point is disabled for the duration.
             PluginMenuService.registerLaunchListener(this::onLaunchState);
@@ -102,7 +73,7 @@ public final class DownloadHubPlugin extends HmclPlugin {
             getContext().logWarning("下载中心：启动监听注册失败 " + e);
         }
 
-        getContext().logInfo("下载中心已启用：标题栏按钮 + 设置 → 插件 → 下载中心");
+        getContext().logInfo("下载中心已启用：标题栏按钮");
     }
 
     /// Enables or disables the title bar entry while a game launch is in flight.
@@ -117,7 +88,6 @@ public final class DownloadHubPlugin extends HmclPlugin {
 
     @Override
     public void onDisable() {
-        PluginMenuService.unregisterPage(pageAction);
         removeStyles();
         getContext().logInfo("下载中心已停用");
     }

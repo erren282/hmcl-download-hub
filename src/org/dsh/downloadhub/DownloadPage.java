@@ -9,23 +9,28 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.ui.FXUtils;
+import org.jackhuang.hmcl.ui.SVG;
+import org.jackhuang.hmcl.ui.construct.ComponentList;
+import org.jackhuang.hmcl.ui.construct.LineButton;
 
 import java.util.List;
 import java.util.Locale;
 
-/// The download page shown as a tab on the launcher's settings page.
+/// The download hub page.
 ///
-/// <p>Lists every download the hub knows about with its progress bar and live speed. Records are
-/// kept on disk by default; the header offers a clear button that removes finished entries without
-/// touching whatever is still transferring.</p>
+/// <p>Built from the launcher's own widgets — [ComponentList], [LineButton] and [LineComponent] —
+/// so it reads as another launcher page rather than a third-party panel: same row heights, same
+/// hover and ripple behaviour, same typography and theme colours, and it follows the light/dark
+/// theme automatically because nothing here paints its own palette.</p>
+///
+/// <p>Records are kept on disk by default; the header offers a clear button that removes finished
+/// entries without touching whatever is still transferring.</p>
 public final class DownloadPage extends VBox
         implements org.jackhuang.hmcl.ui.construct.PageAware {
 
@@ -45,7 +50,7 @@ public final class DownloadPage extends VBox
     @Override
     public void onPageShown() {
         shown = true;
-        refresh();
+        rebuild();
     }
 
     @Override
@@ -54,160 +59,154 @@ public final class DownloadPage extends VBox
     }
 
     private final DownloadManager manager;
-    private final VBox list = new VBox(8);
+    private final VBox list = new VBox(0);
     private final Label summary = new Label();
-    private final Label speedLabel = new Label();
 
     public DownloadPage(DownloadManager manager) {
         this.manager = manager;
 
         getStyleClass().add("download-page");
+        setSpacing(0);
 
-        // The launcher already draws the wallpaper behind the page; a translucent panel with a blur
-        // reads as frosted glass instead of a flat block, matching the store page.
-        Region backdrop = new Region();
-        backdrop.getStyleClass().add("download-backdrop");
-        backdrop.setEffect(backgroundBlur());
-        backdrop.setMouseTransparent(true);
+        // Native pages sit directly on the window background; the launcher draws the wallpaper and
+        // the theme tint behind them, so this page paints nothing of its own.
+        setBackground(null);
 
-        VBox content = new VBox(10, buildHeader(), buildScroll());
-        content.setPadding(new Insets(12, 16, 16, 16));
+        VBox content = new VBox(0, buildHeader(), buildScroll());
+        content.setFillWidth(true);
+        content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        VBox.setVgrow(content, Priority.ALWAYS);
 
-        StackPane layered = new StackPane(backdrop, content);
-        layered.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-        getChildren().add(layered);
+        getChildren().add(content);
+        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-        manager.addListener(this::refresh);
-        refresh();
+        manager.addListener(this::rebuild);
+        rebuild();
     }
 
-    /// Builds the blur used behind the page.
-    ///
-    /// @return the effect
-    private static javafx.scene.effect.BoxBlur backgroundBlur() {
-        javafx.scene.effect.BoxBlur blur = new javafx.scene.effect.BoxBlur();
-        blur.setWidth(20);
-        blur.setHeight(20);
-        blur.setIterations(3);
-        return blur;
-    }
-
-    /// Builds the header: a title, the combined speed and the clear button.
+    /// Builds the page header in the launcher's own style: a title with a muted summary line and
+    /// flat text actions on the right.
     ///
     /// @return the header node
     private Node buildHeader() {
-        Label title = new Label("下载");
-        title.getStyleClass().add("download-title");
+        Label title = new Label("下载中心");
+        title.getStyleClass().add("title-label");
+        title.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
 
-        summary.getStyleClass().add("download-summary");
-        speedLabel.getStyleClass().add("download-speed");
+        summary.getStyleClass().add("subtitle-label");
+        summary.setStyle("-fx-font-size: 12px;");
 
-        VBox texts = new VBox(3, title, summary);
+        VBox texts = new VBox(2, title, summary);
+        texts.setAlignment(Pos.CENTER_LEFT);
 
-        Node clear = XWidgets.button("清空记录", this::clearHistory);
-        Node refresh = XWidgets.button("刷新", this::refresh);
+        Node refresh = nativeFlatButton("刷新", SVG.REFRESH, this::rebuild);
+        Node clear = nativeFlatButton("清空记录", SVG.DELETE_FOREVER, this::clearHistory);
 
         HBox actions = new HBox(8, refresh, clear);
         actions.setAlignment(Pos.CENTER_RIGHT);
 
-        HBox row = new HBox(12, texts, XWidgets.spacer(), speedLabel, actions);
+        HBox row = new HBox(12, texts, spacer(), actions);
         row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(12, 16, 10, 16));
         return row;
     }
 
-    /// Builds the scrollable list area.
+    /// Builds a flat, icon + text action button matching the launcher's inline actions.
+    ///
+    /// @param text   the label
+    /// @param icon   the icon
+    /// @param action the click action
+    /// @return the button
+    private static Node nativeFlatButton(String text, SVG icon, Runnable action) {
+        com.jfoenix.controls.JFXButton button = FXUtils.newRaisedButton(text);
+        button.setGraphic(icon.createIcon(button.textFillProperty()));
+        button.setOnAction(event -> action.run());
+        return button;
+    }
+
+    /// Builds the list scroller.
     ///
     /// @return the scroll pane
     private Node buildScroll() {
         list.setFillWidth(true);
-        list.setPadding(new Insets(4, 2, 8, 2));
+        list.setPadding(new Insets(0, 16, 16, 16));
 
         ScrollPane scroll = new ScrollPane(list);
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scroll.getStyleClass().add("download-scroll");
+        scroll.setBackground(null);
         FXUtils.smoothScrolling(scroll);
         VBox.setVgrow(scroll, Priority.ALWAYS);
         return scroll;
     }
 
     /// Rebuilds the list from the current records.
-    private void refresh() {
+    ///
+    /// <p>Rows are rebuilt wholesale rather than patched in place: a download's row changes shape
+    /// (its cancel button appears and disappears, its bar switches between determinate and
+    /// indeterminate), and rebuilding keeps the code honest at a cost that is irrelevant for a
+    /// list this size.</p>
+    private void rebuild() {
         List<DownloadEntry> entries = manager.entries();
 
         list.getChildren().clear();
+
         if (entries.isEmpty()) {
             Label empty = new Label("还没有下载记录。");
-            empty.getStyleClass().add("download-empty");
-            list.getChildren().add(empty);
+            empty.getStyleClass().add("subtitle-label");
+            VBox box = new VBox(empty);
+            box.setPadding(new Insets(16, 0, 0, 0));
+            list.getChildren().add(box);
         } else {
+            ComponentList componentList = new ComponentList();
             for (DownloadEntry entry : entries)
-                list.getChildren().add(buildRow(entry));
+                componentList.getContent().add(buildRow(entry));
+            list.getChildren().add(componentList);
         }
 
         long running = entries.stream().filter(DownloadEntry::isRunning).count();
-        summary.setText(entries.isEmpty()
-                ? "暂无记录"
-                : "共 " + entries.size() + " 条" + (running > 0 ? "，" + running + " 个进行中" : ""));
-
         long speed = manager.aggregateSpeed();
-        speedLabel.setText(running > 0 && speed > 0
-                ? formatSpeed(speed)
-                : "");
+
+        StringBuilder text = new StringBuilder();
+        text.append(entries.isEmpty() ? "暂无记录" : "共 " + entries.size() + " 条");
+        if (running > 0) {
+            text.append("　·　").append(running).append(" 个进行中");
+            if (speed > 0)
+                text.append("　·　").append(formatSpeed(speed));
+        }
+        summary.setText(text.toString());
     }
 
-    /// Builds one row: name, state, progress bar and speed.
+    /// Builds one row as a native [LineComponent].
+    ///
+    /// <p>The launcher's rows are title + subtitle pairs; progress is attached as the subtitle's
+    /// trailing content so a download looks like any other settings row with an action, instead of
+    /// a bespoke card.</p>
     ///
     /// @param entry the record
     /// @return the row
     private Node buildRow(DownloadEntry entry) {
-        Label name = new Label(entry.name);
-        name.getStyleClass().add("download-name");
+        // A `LineButton` rather than a bare `LineComponent`: it is the launcher's native clickable
+        // row, so hover, ripple and the trailing area all behave exactly like the rest of the UI.
+        LineButton row = new LineButton();
+        row.setTitle(entry.name);
+        row.setSubtitle(detailText(entry));
+        row.setLeading(iconFor(entry));
 
-        Label state = new Label(stateText(entry));
-        state.getStyleClass().addAll("download-state", stateClass(entry));
+        // The trailing text is where the launcher puts a row's summary value. For a download that
+        // is its state plus, while it runs, how far along it is.
+        row.setTrailingText(trailingText(entry));
 
-        Node cancel = null;
+        // Cancel is offered only while it can actually do something.
         if (entry.isRunning()) {
-            // The row below also reacts to clicks (to reveal a finished file), so the button stops
-            // the event from bubbling; consuming it in a separate handler would run first and kill
-            // the action.
-            cancel = XWidgets.button("取消", () -> manager.cancel(entry), true);
-            cancel.getStyleClass().add("download-cancel");
+            Node cancel = nativeFlatButton("取消", SVG.CLOSE, () -> manager.cancel(entry));
+            row.setTitleTrailing(cancel);
         }
 
-        HBox titleRow = cancel == null
-                ? new HBox(8, name, XWidgets.spacer(), state)
-                : new HBox(8, name, XWidgets.spacer(), state, cancel);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-
-        ProgressBar bar = new ProgressBar(0);
-        bar.getStyleClass().add("download-bar");
-        bar.setMaxWidth(Double.MAX_VALUE);
-        bar.setPrefHeight(6);
-        bar.setMinHeight(6);
-
-        double fraction = entry.fraction();
+        // A finished download reveals its file on click, which is the likely follow-up action.
         if (entry.state == DownloadEntry.State.DONE) {
-            bar.setProgress(1);
-        } else if (fraction >= 0) {
-            bar.setProgress(fraction);
-        } else if (entry.isRunning()) {
-            bar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-        } else {
-            bar.setProgress(0);
-        }
-
-        Label detail = new Label(detailText(entry));
-        detail.getStyleClass().add("download-detail");
-
-        VBox row = new VBox(6, titleRow, bar, detail);
-        row.getStyleClass().add("download-row");
-        row.setMaxWidth(Double.MAX_VALUE);
-
-        // Reveal the finished file in place, which is the most likely follow-up action.
-        if (entry.state == DownloadEntry.State.DONE) {
-            row.setOnMouseClicked(event -> {
+            row.setOnAction(event -> {
                 try {
                     java.nio.file.Path path = java.nio.file.Path.of(entry.target);
                     java.nio.file.Path parent = path.getParent();
@@ -221,6 +220,32 @@ public final class DownloadPage extends VBox
         return row;
     }
 
+    /// Builds the right-aligned summary value for a row.
+    ///
+    /// @param entry the record
+    /// @return the text
+    private static String trailingText(DownloadEntry entry) {
+        String state = stateText(entry);
+        double fraction = entry.fraction();
+        if (entry.isRunning() && fraction >= 0)
+            return state + " " + Math.round(fraction * 100) + "%";
+        return state;
+    }
+
+    /// Returns the leading icon for a record's state.
+    ///
+    /// @param entry the record
+    /// @return the icon node
+    private static Node iconFor(DownloadEntry entry) {
+        SVG icon = switch (entry.state) {
+            case RUNNING -> SVG.DOWNLOAD;
+            case DONE -> SVG.CHECK_CIRCLE;
+            case CANCELLED -> SVG.CLOSE;
+            case FAILED -> SVG.ERROR;
+        };
+        return icon.createIcon(20);
+    }
+
     /// Returns the label describing an entry's state.
     ///
     /// @param entry the record
@@ -231,19 +256,6 @@ public final class DownloadPage extends VBox
             case DONE -> "已完成";
             case CANCELLED -> "已取消";
             case FAILED -> "失败";
-        };
-    }
-
-    /// Returns the style class matching an entry's state.
-    ///
-    /// @param entry the record
-    /// @return the class name
-    private static String stateClass(DownloadEntry entry) {
-        return switch (entry.state) {
-            case RUNNING -> "running";
-            case DONE -> "done";
-            case CANCELLED -> "cancelled";
-            case FAILED -> "failed";
         };
     }
 
@@ -302,9 +314,18 @@ public final class DownloadPage extends VBox
         return String.format(Locale.ROOT, "%.1f MB/s", bytesPerSecond / (1024.0 * 1024.0));
     }
 
-    /// Clears finished records after asking for confirmation.
+    /// Clears finished records.
     private void clearHistory() {
         manager.clearHistory();
-        refresh();
+        rebuild();
+    }
+
+    /// Creates a flexible spacer.
+    ///
+    /// @return the spacer
+    private static Region spacer() {
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        return spacer;
     }
 }

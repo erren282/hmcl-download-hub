@@ -1,7 +1,7 @@
 # 下载中心
 
 [![HMCL Plugin](https://img.shields.io/badge/HMCL-plugin-blue)](https://github.com/topics/erren282s-launcher-plugins)
-[![Version](https://img.shields.io/badge/version-1.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-1.7.0-green)]()
 [![License](https://img.shields.io/badge/license-GPL--3.0-lightgrey)](LICENSE)
 
 把启动器的下载集中到一个页面：进度、速度、记录一目了然，下载全程在后台进行。
@@ -39,9 +39,19 @@ screenshot-1.4.2.jar            已完成
 47 个文件完成 · 23.4 MB · 2.3 MB/s
 ```
 
+### 原生界面
+
+页面完全由启动器自己的组件搭建（`ComponentList` / `LineButton`）：行高、悬停反馈、水波纹、
+字体与配色都和启动器的其它页面一致，并且自动跟随明暗主题，不再是一块独立风格的第三方面板。
+
 ### 记录与清空
 
-下载记录默认保存在磁盘上，重启启动器后仍在。点「清空记录」可以移除已完成项，**正在下载的任务不受影响**。
+下载记录只反映**当前这次运行**正在发生的事：启动器启动时会自动清理上一次会话遗留的记录，
+因为那些传输早已随进程结束，再列出来只会是一堆无法恢复的「已取消」。
+
+- **启动时自动清理**：上次会话的记录在启动时删除，页面从空开始
+- **手动清空**：点「清空记录」移除已完成项，**正在下载的任务不受影响**
+- **只删记录，不删文件**：已经下载到磁盘的文件保持原样
 
 ### 取消下载
 
@@ -57,12 +67,10 @@ screenshot-1.4.2.jar            已完成
 
 ## 安装
 
-把 `org.dsh.download-hub_1.5.1.jar` 放进 `.hmcl/plugins/`，重启启动器。
+把 `org.dsh.download-hub_1.6.0.jar` 放进 `.hmcl/plugins/`，重启启动器。
 
-之后：
-
-- 标题栏会出现下载按钮
-- 设置 → 插件 → 下载中心 也能打开
+之后标题栏会出现下载按钮，点它即可打开下载中心。该按钮是唯一入口：
+「设置 → 插件」的插件页面里不再列出「下载中心」模块。
 
 ## 更新依赖的启动器能力
 
