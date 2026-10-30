@@ -1,0 +1,10 @@
+﻿{
+  "id": "org.dsh.download-hub",
+  "name": "下载中心",
+  "version": "1.5.1",
+  "author": "第三方插件（AI 生成）",
+  "description": "在标题栏提供下载页面：下载在后台进行，显示进度条与实时速度，记录默认保存并可一键清空",
+  "entry": "org.dsh.downloadhub.DownloadHubPlugin",
+  "minLauncherVersion": "3.16",
+  "access": "root"
+}
