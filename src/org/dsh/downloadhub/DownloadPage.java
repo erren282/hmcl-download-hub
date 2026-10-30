@@ -68,9 +68,13 @@ public final class DownloadPage extends VBox
         getStyleClass().add("download-page");
         setSpacing(0);
 
-        // Native pages sit directly on the window background; the launcher draws the wallpaper and
-        // the theme tint behind them, so this page paints nothing of its own.
-        setBackground(null);
+        // The launcher's own pages are `DecoratorAnimatedPage`s, whose constructor adds the
+        // "gray-background" style class — that is where the familiar translucent surface comes
+        // from, not from any paint this page does. Plugins cannot extend that class (it belongs to
+        // the launcher's page machinery, not the plugin API), so the very same style class is
+        // applied directly: the page then inherits the launcher's surface colour and follows the
+        // light/dark theme exactly like every other page.
+        getStyleClass().add("gray-background");
 
         VBox content = new VBox(0, buildHeader(), buildScroll());
         content.setFillWidth(true);

@@ -5,7 +5,8 @@
  * 字体与配色都由启动器主题负责，因此这里只保留原生组件覆盖不到的几处。
  */
 
-/* 滚动区透明：页面直接铺在启动器的窗口背景上，不自绘任何面板 */
+/* 滚动区透明：页面本体由启动器的 gray-background 样式负责上色，
+ * 这里只让滚动容器不再额外盖一层底色。 */
 .download-scroll {
     -fx-background-color: transparent;
     -fx-background: transparent;
@@ -15,10 +16,11 @@
     -fx-background-color: transparent;
 }
 
-/* 页面根节点同样透明，让壁纸与主题色透出来 */
-.download-page {
-    -fx-background-color: transparent;
-}
+/* 注意：不要给 .download-page 设置 -fx-background-color。
+ *
+ * 页面背景来自启动器自带的 .gray-background（-monet-surface-transparent-50），
+ * 而插件样式表是挂在场景根节点上的，优先级高于启动器自己的 root.css——
+ * 一旦在这里写 transparent，就会把原生背景色覆盖掉，页面变成没有底色的样子。 */
 
 /* 标题栏按钮上的红点提示
  *
