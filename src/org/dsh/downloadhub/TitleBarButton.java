@@ -309,8 +309,11 @@ final class TitleBarButton {
             return false;
 
         for (Node child : box.getChildren()) {
-            // Skip the wrapper the download button itself brings, which is not a decorator button.
-            if (child.getStyleClass().contains("download-hub-button-container"))
+            // Skip the wrappers plugin buttons themselves bring, which are not decorator buttons.
+            // The plugin store's restart button sits to the left of this one, so both sides have to
+            // tolerate each other's wrapper or the row stops being recognised once either is added.
+            if (child.getStyleClass().contains("download-hub-button-container")
+                    || child.getStyleClass().contains("store-restart-button-container"))
                 continue;
             if (!child.getStyleClass().contains("jfx-decorator-button"))
                 return false;
