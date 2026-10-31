@@ -176,13 +176,27 @@ public final class DownloadPage extends VBox
 
     /// Rebuilds the list from the current records.
     ///
-    /// <p>Rows are recreated rather than patched in place: a download's row changes shape (its
-    /// cancel button appears and disappears, its fold opens and closes), and rebuilding keeps the
-    /// code honest. The cost is fine once bursts are coalesced by [#requestRebuild].</p>
+    /// <p>Rows are recreated only when the set of downloads changes. Progress-only refreshes patch
+    /// the existing rows in place: recreating them several times a second made the hover highlight
+    /// flicker and reset the pointer state under the user.</p>
     private void rebuild() {
         List<DownloadEntry> entries = manager.entries();
 
+        // The structure only changes when a download is added or removed; progress does not.
+        String structure = entries.stream()
+                .map(entry -> entry.name + '\u0000' + entry.state + '\u0000' + entry.children.size()
+                        + '\u0000' + entry.childrenExpanded)
+                .collect(java.util.stream.Collectors.joining("\u0001"));
+
+        if (structure.equals(displayedStructure)) {
+            updateRowsInPlace(entries);
+            updateSummary(entries);
+            return;
+        }
+        displayedStructure = structure;
+
         list.getChildren().clear();
+        rowBindings.clear();
 
         if (entries.isEmpty()) {
             Label empty = new Label("还没有下载记录。");
@@ -197,6 +211,54 @@ public final class DownloadPage extends VBox
             list.getChildren().add(componentList);
         }
 
+        updateSummary(entries);
+    }
+
+    /// Signature of the currently displayed structure; unchanged signatures skip a rebuild.
+    private String displayedStructure = "";
+
+    /// Per-entry handles used to patch text without recreating rows.
+    private final java.util.Map<DownloadEntry, RowBinding> rowBindings =
+            new java.util.IdentityHashMap<>();
+
+    /// The parts of a row that change while a download runs.
+    private static final class RowBinding {
+
+        final LineButton row;
+        final DownloadEntry entry;
+
+        /// Labels inside the expanded file list, in the same order as `entry.children`.
+        final java.util.List<Label> childStatuses = new java.util.ArrayList<>();
+
+        RowBinding(LineButton row, DownloadEntry entry) {
+            this.row = row;
+            this.entry = entry;
+        }
+    }
+
+    /// Patches the live rows with the current progress values.
+    ///
+    /// @param entries the current records
+    private void updateRowsInPlace(List<DownloadEntry> entries) {
+        for (DownloadEntry entry : entries) {
+            RowBinding binding = rowBindings.get(entry);
+            if (binding == null)
+                continue;
+
+            binding.row.setSubtitle(detailText(entry));
+            binding.row.setTrailingText(trailingText(entry));
+
+            // Child statuses are rebuilt only when their count still matches, which the structure
+            // signature already guarantees.
+            for (int i = 0; i < binding.childStatuses.size() && i < entry.children.size(); i++)
+                binding.childStatuses.get(i).setText(childStatus(entry.children.get(i)));
+        }
+    }
+
+    /// Updates the header counters.
+    ///
+    /// @param entries the current records
+    private void updateSummary(List<DownloadEntry> entries) {
         long running = entries.stream().filter(DownloadEntry::isRunning).count();
         long speed = manager.aggregateSpeed();
 
@@ -247,6 +309,10 @@ public final class DownloadPage extends VBox
         row.setSubtitle(detailText(entry));
         row.setLeading(iconFor(entry));
 
+        // Registered so progress refreshes can patch this row instead of recreating it.
+        RowBinding binding = new RowBinding(row, entry);
+        rowBindings.put(entry, binding);
+
         // The trailing text is where the launcher puts a row's summary value. For a download that
         // is its state plus, while it runs, how far along it is.
         row.setTrailingText(trailingText(entry));
@@ -292,14 +358,25 @@ public final class DownloadPage extends VBox
     private Node buildBatchBlock(DownloadEntry entry, LineButton row) {
         VBox files = new VBox(0);
         files.getStyleClass().add("download-children");
-        files.setVisible(false);
-        files.setManaged(false);
 
-        for (DownloadEntry.Child child : entry.children)
-            files.getChildren().add(buildChildRow(child));
+        RowBinding binding = rowBindings.get(entry);
+        binding.childStatuses.clear();
+
+        for (DownloadEntry.Child child : entry.children) {
+            Label status = new Label(childStatus(child));
+            status.getStyleClass().add("download-related");
+            binding.childStatuses.add(status);
+            files.getChildren().add(buildChildRow(child, status));
+        }
+
+        // Restore the expanded state from the record. The page rebuilds rows while downloads run,
+        // so keeping this only in the view made the list collapse on the next refresh.
+        boolean expanded = entry.childrenExpanded;
+        files.setVisible(expanded);
+        files.setManaged(expanded);
 
         // A disclosure marker in the trailing area, so the row itself says it can be expanded.
-        Label toggle = new Label("▸ " + entry.children.size());
+        Label toggle = new Label((expanded ? "▾ " : "▸ ") + entry.children.size());
         toggle.getStyleClass().add("download-related");
         row.setTitleTrailing(toggle);
 
@@ -312,7 +389,8 @@ public final class DownloadPage extends VBox
         }
 
         row.setOnAction(event -> {
-            boolean show = !files.isVisible();
+            entry.childrenExpanded = !entry.childrenExpanded;
+            boolean show = entry.childrenExpanded;
             files.setVisible(show);
             files.setManaged(show);
             toggle.setText((show ? "▾ " : "▸ ") + entry.children.size());
@@ -325,16 +403,14 @@ public final class DownloadPage extends VBox
 
     /// Builds one folded file row.
     ///
-    /// @param child the file record
+    /// @param child  the file record
+    /// @param status the label that shows its progress, patched in place on refresh
     /// @return the row
-    private Node buildChildRow(DownloadEntry.Child child) {
+    private Node buildChildRow(DownloadEntry.Child child, Label status) {
         Label name = new Label(child.name);
         name.getStyleClass().add("download-related-name");
 
-        Label state = new Label(childStatus(child));
-        state.getStyleClass().add("download-related");
-
-        HBox row = new HBox(10, name, spacer(), state);
+        HBox row = new HBox(10, name, spacer(), status);
         row.getStyleClass().add("download-related-row");
         row.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(name, Priority.ALWAYS);

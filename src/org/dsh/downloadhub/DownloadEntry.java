@@ -70,6 +70,13 @@ public final class DownloadEntry {
     /// visible without turning the list into hundreds of rows.</p>
     public final java.util.List<Child> children = new java.util.ArrayList<>();
 
+    /// Whether the user has expanded this batch's file list.
+    ///
+    /// <p>Held on the record rather than on the view: the page rebuilds its rows on a timer while
+    /// downloads run, and view-local state was lost on every rebuild — which is why the list
+    /// snapped shut the moment it was opened.</p>
+    public boolean childrenExpanded;
+
     /// One file inside a batch.
     public static final class Child {
 
