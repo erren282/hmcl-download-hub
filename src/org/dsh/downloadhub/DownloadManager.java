@@ -30,13 +30,15 @@ public final class DownloadManager {
 
     /// Notified when a brand-new download appears.
     ///
-    /// <p>Used to bring the download page to the front: starting an install in the launcher
-    /// otherwise leaves the user looking at the page they started from, with no sign that anything
-    /// is happening.</p>
+    /// <p>Used to dismiss whatever the user started the download from and to say so at the
+    /// bottom of the launcher: starting an install otherwise leaves the user looking at the page
+    /// they started from, with no sign that anything is happening.</p>
     public interface StartListener {
 
         /// Called once per newly started download, on a background thread.
-        void onDownloadStarted();
+        ///
+        /// @param name the download's display name, for the confirmation message
+        void onDownloadStarted(String name);
     }
 
     /// Upper bound on stored records, so the history cannot grow without limit.
@@ -131,12 +133,12 @@ public final class DownloadManager {
                         entries.add(0, entry);
                         trimHistory();
 
-                        // Only a genuinely new row pulls the page forward; the hundreds of files in
-                        // one batch must not keep re-triggering the jump.
+                        // Only a genuinely new row notifies the host; the hundreds of files in
+                        // one batch must not keep re-triggering it.
                         StartListener listener = startListener;
                         if (listener != null) {
                             try {
-                                listener.onDownloadStarted();
+                                listener.onDownloadStarted(entry.name);
                             } catch (Throwable ignored) {
                                 // Navigation is best-effort.
                             }

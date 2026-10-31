@@ -92,17 +92,23 @@ public final class DownloadHubPlugin extends HmclPlugin {
         getContext().logInfo("下载中心已停用");
     }
 
-    /// Signals a new download with a dot on the title bar button.
+    /// Reacts to a new download: dismiss what it was started from and say so at the bottom.
     ///
-    /// <p>Navigation used to happen here, but pulling the window away from whatever the user was
-    /// doing is disruptive — a download starting is worth an unobtrusive hint, not a page change.
-    /// The dot slides in and fades, and the page is one click away.</p>
-    private void onDownloadStarted() {
+    /// <p>The page that launched the download — or the dialog — has served its purpose by then.
+    /// Leaving it up makes the user wait there for a progress bar that lives somewhere else.
+    /// The dot on the title bar still marks the hub as the place to look.</p>
+    private void onDownloadStarted(String name) {
         try {
             if (titleBarButton != null)
                 titleBarButton.showDot();
         } catch (Throwable e) {
             getContext().logWarning("无法显示下载提示：" + e);
+        }
+
+        try {
+            DownloadUi.afterDownloadStarted(DownloadUi.messageFor(name));
+        } catch (Throwable e) {
+            getContext().logWarning("无法收起下载界面：" + e);
         }
     }
 
@@ -130,6 +136,10 @@ public final class DownloadHubPlugin extends HmclPlugin {
     /// <p>Navigates straight to the page instead of routing through the settings page first. The
     /// navigator keeps a stack, so pushing settings in between made the back button land on the
     /// settings page rather than wherever the user actually was.</p>
+    ///
+    /// <p>Any open dialog is dismissed first. A dialog sits on top of everything and is modal, so
+    /// opening the hub underneath one would leave the page visible but unclickable — it looks
+    /// like the button did nothing.</p>
     private void openPage() {
         try {
             if (page == null)
@@ -138,6 +148,8 @@ public final class DownloadHubPlugin extends HmclPlugin {
             // Opening the hub is what the dot was asking for, so it has served its purpose.
             if (titleBarButton != null)
                 titleBarButton.clearDot();
+
+            DownloadUi.closeAllDialogs();
 
             // The page is reused, so pushing it again would leave two stack entries pointing at it
             // and back would seem to do nothing. `onPageShown` tracks the real state.
