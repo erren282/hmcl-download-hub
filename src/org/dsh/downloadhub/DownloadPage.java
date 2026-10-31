@@ -84,7 +84,7 @@ public final class DownloadPage extends VBox
         getChildren().add(content);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-        manager.addListener(this::rebuild);
+        manager.addListener(this::requestRebuild);
         rebuild();
     }
 
@@ -145,12 +145,40 @@ public final class DownloadPage extends VBox
         return scroll;
     }
 
+    /// Minimum gap between two automatic rebuilds, in milliseconds.
+    ///
+    /// <p>Every progress tick of every file asks for a refresh. With thirty files in flight that
+    /// arrived dozens of times a second, and since a rebuild throws away and recreates every row,
+    /// the JavaFX thread never got a chance to render — the window froze until the download
+    /// finished. Updates are coalesced onto a timer instead.</p>
+    private static final long REBUILD_INTERVAL_MS = 250;
+
+    /// Pending coalesced rebuild, or `null` when none is scheduled.
+    private javafx.animation.Timeline rebuildTimer;
+
+    /// Set when a request arrives while a rebuild is already scheduled.
+    private boolean rebuildPending;
+
+    /// Schedules a rebuild, coalescing bursts into one per interval.
+    private void requestRebuild() {
+        if (rebuildTimer != null && rebuildTimer.getStatus() == javafx.animation.Animation.Status.RUNNING) {
+            rebuildPending = true;
+            return;
+        }
+
+        rebuildTimer = new javafx.animation.Timeline(new javafx.animation.KeyFrame(
+                javafx.util.Duration.millis(REBUILD_INTERVAL_MS), event -> {
+            rebuildPending = false;
+            rebuild();
+        }));
+        rebuildTimer.play();
+    }
+
     /// Rebuilds the list from the current records.
     ///
-    /// <p>Rows are rebuilt wholesale rather than patched in place: a download's row changes shape
-    /// (its cancel button appears and disappears, its bar switches between determinate and
-    /// indeterminate), and rebuilding keeps the code honest at a cost that is irrelevant for a
-    /// list this size.</p>
+    /// <p>Rows are recreated rather than patched in place: a download's row changes shape (its
+    /// cancel button appears and disappears, its fold opens and closes), and rebuilding keeps the
+    /// code honest. The cost is fine once bursts are coalesced by [#requestRebuild].</p>
     private void rebuild() {
         List<DownloadEntry> entries = manager.entries();
 
