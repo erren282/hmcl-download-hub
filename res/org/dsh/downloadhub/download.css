@@ -38,3 +38,22 @@
 .download-hub-button-container {
     -fx-background-color: transparent;
 }
+
+/* 整合包 / 批量任务展开后的文件列表：缩进一层、弱化显示，不与主行争夺注意力 */
+.download-children {
+    -fx-padding: 2 0 8 44;
+}
+
+.download-related-row {
+    -fx-padding: 3 12 3 0;
+}
+
+.download-related-name {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -monet-on-surface-variant;
+}
+
+.download-related {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -monet-on-surface-variant;
+}

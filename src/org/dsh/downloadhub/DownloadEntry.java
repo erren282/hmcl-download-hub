@@ -63,6 +63,39 @@ public final class DownloadEntry {
     /// have to be accumulated as files finish; otherwise the bar restarts at zero for every file.</p>
     public long batchBytesDone;
 
+    /// Individual files inside a batch, newest first, capped so a thousand-file install does not
+    /// grow without bound.
+    ///
+    /// <p>The page shows these folded under the batch row, which is what makes a modpack's mods
+    /// visible without turning the list into hundreds of rows.</p>
+    public final java.util.List<Child> children = new java.util.ArrayList<>();
+
+    /// One file inside a batch.
+    public static final class Child {
+
+        /// File name, as reported by the download.
+        public String name = "";
+
+        /// Bytes received for this file.
+        public long received;
+
+        /// Total bytes for this file, or `0` when unknown.
+        public long total;
+
+        /// Whether this file has finished.
+        public boolean done;
+
+        /// Whether this file failed.
+        public boolean failed;
+
+        /// Returns the completion fraction, or `-1` when the total is unknown.
+        ///
+        /// @return a value in `[0, 1]`, or `-1`
+        public double fraction() {
+            return total > 0 ? Math.min(1.0, (double) received / total) : -1;
+        }
+    }
+
     /// Current state.
     public State state = State.RUNNING;
 

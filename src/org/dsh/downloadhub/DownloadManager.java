@@ -144,8 +144,10 @@ public final class DownloadManager {
                     }
                     entry.state = DownloadEntry.State.RUNNING;
                     entry.message = "";
-                    if (!entry.batch.isEmpty())
+                    if (!entry.batch.isEmpty()) {
                         entry.batchTotal++;
+                        recordChild(entry, event);
+                    }
                 }
                 case PROGRESS -> {
                     if (entry == null)
@@ -165,6 +167,7 @@ public final class DownloadManager {
                                 entry.batchBytesDone + event.getReceived());
                         entry.total = Math.max(entry.total,
                                 entry.batchBytesDone + Math.max(0, event.getTotal()));
+                        updateChildProgress(entry, event);
                     }
                 }
                 case FINISHED -> {
@@ -178,6 +181,7 @@ public final class DownloadManager {
                         entry.batchBytesDone += Math.max(0, event.getReceived());
                         entry.received = Math.max(entry.received, entry.batchBytesDone);
                         entry.state = DownloadEntry.State.RUNNING;
+                        finishChild(entry, event);
                         break;
                     }
                     entry.received = entry.total > 0 ? entry.total : event.getReceived();
@@ -228,6 +232,95 @@ public final class DownloadManager {
                 return entry;
         }
         return null;
+    }
+
+    /// Upper bound on recorded files inside one batch.
+    ///
+    /// <p>A large modpack pulls well over a thousand files; keeping them all would grow the row
+    /// without bound. Only the most recent ones are useful for a glance at what is happening.</p>
+    private static final int MAX_CHILDREN = 60;
+
+    /// Registers a file that just started inside a batch.
+    ///
+    /// @param entry the batch row
+    /// @param event the download event
+    private static void recordChild(DownloadEntry entry, org.jackhuang.hmcl.event.DownloadEvent event) {
+        String name = event.getName();
+        if (name == null || name.isBlank())
+            name = fileNameOf(event.getTarget());
+        if (name == null || name.isBlank())
+            return;
+
+        for (DownloadEntry.Child child : entry.children) {
+            if (name.equals(child.name))
+                return;
+        }
+
+        DownloadEntry.Child child = new DownloadEntry.Child();
+        child.name = name;
+        child.total = event.getTotal();
+        entry.children.add(0, child);
+
+        while (entry.children.size() > MAX_CHILDREN)
+            entry.children.remove(entry.children.size() - 1);
+    }
+
+    /// Updates a file's progress inside a batch.
+    ///
+    /// @param entry the batch row
+    /// @param event the download event
+    private static void updateChildProgress(DownloadEntry entry, org.jackhuang.hmcl.event.DownloadEvent event) {
+        DownloadEntry.Child child = findChild(entry, event);
+        if (child == null)
+            return;
+
+        child.received = event.getReceived();
+        if (event.getTotal() > 0)
+            child.total = event.getTotal();
+    }
+
+    /// Finds the child a progress event belongs to.
+    ///
+    /// @param entry the batch row
+    /// @param event the download event
+    /// @return the child, or `null`
+    private static DownloadEntry.Child findChild(DownloadEntry entry, org.jackhuang.hmcl.event.DownloadEvent event) {
+        String name = event.getName();
+        if (name == null || name.isBlank())
+            name = fileNameOf(event.getTarget());
+        if (name == null || name.isBlank())
+            return null;
+
+        for (DownloadEntry.Child child : entry.children) {
+            if (name.equals(child.name))
+                return child;
+        }
+        return null;
+    }
+
+    /// Returns the last path segment of a target path.
+    ///
+    /// @param target the path, or `null`
+    /// @return the file name, or `null`
+    private static String fileNameOf(String target) {
+        if (target == null || target.isBlank())
+            return null;
+        String normalized = target.replace('\\', '/');
+        int slash = normalized.lastIndexOf('/');
+        return slash >= 0 ? normalized.substring(slash + 1) : normalized;
+    }
+
+    /// Marks the child a finished event belongs to.
+    ///
+    /// @param entry the batch row
+    /// @param event the download event
+    private static void finishChild(DownloadEntry entry, org.jackhuang.hmcl.event.DownloadEvent event) {
+        DownloadEntry.Child child = findChild(entry, event);
+        if (child == null)
+            return;
+        child.done = true;
+        if (child.total > 0)
+            child.received = child.total;
     }
 
     /// Turns a batch identifier into a readable title.

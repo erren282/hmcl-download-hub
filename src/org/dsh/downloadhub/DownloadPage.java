@@ -209,7 +209,7 @@ public final class DownloadPage extends VBox
         }
 
         // A finished download reveals its file on click, which is the likely follow-up action.
-        if (entry.state == DownloadEntry.State.DONE) {
+        if (entry.state == DownloadEntry.State.DONE && entry.children.isEmpty()) {
             row.setOnAction(event -> {
                 try {
                     java.nio.file.Path path = java.nio.file.Path.of(entry.target);
@@ -221,7 +221,92 @@ public final class DownloadPage extends VBox
                 }
             });
         }
+
+        // A batch carries its individual files. They are folded underneath the summary row so a
+        // modpack's mods are visible on demand without turning the page into hundreds of rows.
+        if (!entry.children.isEmpty())
+            return buildBatchBlock(entry, row);
+
         return row;
+    }
+
+    /// Wraps a batch row together with its folded list of files.
+    ///
+    /// <p>Collapsed by default: the summary row already carries progress and counts, and expanding
+    /// a thousand-file install by default would bury every other download.</p>
+    ///
+    /// @param entry the batch record
+    /// @param row   the summary row
+    /// @return the block
+    private Node buildBatchBlock(DownloadEntry entry, LineButton row) {
+        VBox files = new VBox(0);
+        files.getStyleClass().add("download-children");
+        files.setVisible(false);
+        files.setManaged(false);
+
+        for (DownloadEntry.Child child : entry.children)
+            files.getChildren().add(buildChildRow(child));
+
+        // A disclosure marker in the trailing area, so the row itself says it can be expanded.
+        Label toggle = new Label("▸ " + entry.children.size());
+        toggle.getStyleClass().add("download-related");
+        row.setTitleTrailing(toggle);
+
+        // Cancel sits on the summary row too: expanding and cancelling are separate concerns, and
+        // hiding cancel behind a fold would make a running install hard to stop.
+        if (entry.isRunning()) {
+            Node cancel = nativeFlatButton("取消", SVG.CLOSE, () -> manager.cancel(entry));
+            row.setTrailingText("");
+            row.setTrailingIcon(cancel);
+        }
+
+        row.setOnAction(event -> {
+            boolean show = !files.isVisible();
+            files.setVisible(show);
+            files.setManaged(show);
+            toggle.setText((show ? "▾ " : "▸ ") + entry.children.size());
+        });
+
+        VBox block = new VBox(0, row, files);
+        block.setFillWidth(true);
+        return block;
+    }
+
+    /// Builds one folded file row.
+    ///
+    /// @param child the file record
+    /// @return the row
+    private Node buildChildRow(DownloadEntry.Child child) {
+        Label name = new Label(child.name);
+        name.getStyleClass().add("download-related-name");
+
+        Label state = new Label(childStatus(child));
+        state.getStyleClass().add("download-related");
+
+        HBox row = new HBox(10, name, spacer(), state);
+        row.getStyleClass().add("download-related-row");
+        row.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(name, Priority.ALWAYS);
+        name.setMaxWidth(Double.MAX_VALUE);
+        return row;
+    }
+
+    /// Describes a file's state in one short phrase.
+    ///
+    /// @param child the file record
+    /// @return the text
+    private static String childStatus(DownloadEntry.Child child) {
+        if (child.failed)
+            return "失败";
+        if (child.done)
+            return "完成";
+
+        double fraction = child.fraction();
+        if (fraction >= 0)
+            return Math.round(fraction * 100) + "%";
+        if (child.received > 0)
+            return XWidgets.formatBytes(child.received);
+        return "等待中";
     }
 
     /// Builds the right-aligned summary value for a row.
