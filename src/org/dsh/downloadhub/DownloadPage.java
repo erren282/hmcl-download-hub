@@ -210,6 +210,27 @@ public final class DownloadPage extends VBox
         summary.setText(text.toString());
     }
 
+    /// Returns whether a download's target is a scratch file rather than a real destination.
+    ///
+    /// <p>The launcher downloads structured content — a modpack's mods, a game's libraries — into
+    /// temporary files that are moved or deleted once the install completes. Revealing their folder
+    /// opened an empty temp directory, which is never what the user wants. Interactive installs
+    /// show their own progress dialog, so nothing is lost by not offering the shortcut here.</p>
+    ///
+    /// @param target the recorded destination, or `null`
+    /// @return whether the path is a scratch location
+    private static boolean isTemporaryTarget(String target) {
+        if (target == null || target.isBlank())
+            return true;
+
+        String normalized = target.replace('\\', '/').toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains("/temp/") || normalized.contains("/tmp/"))
+            return true;
+
+        // The launcher stages downloads beside their destination.
+        return normalized.endsWith(".part") || normalized.endsWith(".tmp");
+    }
+
     /// Builds one row as a native [LineComponent].
     ///
     /// <p>The launcher's rows are title + subtitle pairs; progress is attached as the subtitle's
@@ -237,12 +258,14 @@ public final class DownloadPage extends VBox
         }
 
         // A finished download reveals its file on click, which is the likely follow-up action.
-        if (entry.state == DownloadEntry.State.DONE && entry.children.isEmpty()) {
+        // Only for standalone files: a modpack's mods point at staging paths that are deleted once
+        // the install finishes, so opening them landed the user in an empty temp folder.
+        if (entry.state == DownloadEntry.State.DONE && entry.children.isEmpty() && !isTemporaryTarget(entry.target)) {
             row.setOnAction(event -> {
                 try {
                     java.nio.file.Path path = java.nio.file.Path.of(entry.target);
                     java.nio.file.Path parent = path.getParent();
-                    if (parent != null)
+                    if (parent != null && java.nio.file.Files.isDirectory(parent))
                         FXUtils.openFolder(parent);
                 } catch (Throwable ignored) {
                     // A missing file needs no handling.

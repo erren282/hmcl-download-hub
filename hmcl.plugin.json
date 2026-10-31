@@ -1,7 +1,7 @@
 {
   "id": "org.dsh.download-hub",
   "name": "下载中心",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "author": "第三方插件（AI 生成）",
   "description": "在标题栏提供下载中心页面（启动器原生界面）：下载在后台进行，显示进度与实时速度；每次启动时自动清理上次会话遗留的下载记录",
   "entry": "org.dsh.downloadhub.DownloadHubPlugin",
